@@ -104,9 +104,9 @@ public class TitanCassandraPeer {
 
 			graph.shutdown();
 
-			System.out.print("\n\nFinal results: ");
+			System.out.print("\nFinal results: ");
 			stats(done, nanos);
-			System.out.print("\n\n");
+			System.out.print("\n");
 		} catch (Exception e) {
 			error = -1;
 			throw e;
