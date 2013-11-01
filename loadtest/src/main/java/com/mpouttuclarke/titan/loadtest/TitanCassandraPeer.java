@@ -1,7 +1,8 @@
 package com.mpouttuclarke.titan.loadtest;
 
 import java.io.File;
-import java.lang.Thread.State;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.configuration.BaseConfiguration;
@@ -38,15 +39,17 @@ public class TitanCassandraPeer {
 		final int threads = Integer.valueOf(args[4]);
 		final int commitSize = Integer.valueOf(args[5]);
 		final AtomicLong done = new AtomicLong();
-		final AtomicLong nanos = new AtomicLong();
 		try {
+			final Semaphore doneLock = new Semaphore(threads);
 			final TitanGraph graph = TitanFactory.open(conf);
 			graph.makeType().name("vid").dataType(Long.class)
 					.indexed(Vertex.class).unique(Direction.BOTH)
 					.makePropertyKey();
 			graph.makeType().name("linkTo").unique(Direction.OUT)
 					.makeEdgeLabel();
-
+			graph.commit();
+			
+			final long start = System.nanoTime();
 			Thread[] workers = new Thread[threads];
 			for (int thread = 0; thread < threads; thread++) {
 				final int threadId = thread;
@@ -54,7 +57,7 @@ public class TitanCassandraPeer {
 					@Override
 					public void run() {
 						try {
-							long start = System.nanoTime();
+							doneLock.acquire();
 							final long divisor = instanceCount * threads;
 							final long modulus = instanceId * threads + threadId;
 							Vertex prev = null;
@@ -70,43 +73,42 @@ public class TitanCassandraPeer {
 										prev.addEdge("linkTo", curr);
 										prev = curr;
 									}
-								}
-								changed++;
-								if (changed % commitSize == 0) {
-									tx.commit();
-									done.addAndGet(changed);
-									long since = System.nanoTime();
-									nanos.addAndGet(Math.abs(since - start));
-									tx = graph.newTransaction();
-									start = since;
-									changed = 0;
-									prev = null;
+									changed++;
+									if (changed % commitSize == 0) {
+										tx.commit();
+										done.addAndGet(changed);
+										tx = graph.newTransaction();
+										changed = 0;
+										prev = null;
+									}
 								}
 							}
 							tx.commit();
+							done.addAndGet(changed);
 						} catch(Exception e) {
 							LOG.error(Thread.currentThread().getName(), e);
+						} finally {
+							doneLock.release();
 						}
 					}
 				});
 				workers[thread].start();
 			}
 			
-			boolean allDone = true;
-			do {
-				Thread.sleep(10000);
-				stats(done, nanos);
-				for (Thread worker : workers) {
-					State state = worker.getState();
-					allDone = allDone && state == State.TERMINATED;
-				}
-			} while(!allDone);
+			while(!doneLock.tryAcquire(threads, 10, TimeUnit.SECONDS)) {
+				stats(done, System.nanoTime() - start);
+			}
 
 			graph.shutdown();
 
 			System.out.print("\nFinal results: ");
-			stats(done, nanos);
+			stats(done, System.nanoTime() - start );
 			System.out.print("\n");
+			
+			if(instanceCount > 1) {
+				System.out.println("Waiting forever so other nodes don't fail");
+				Thread.sleep(Long.MAX_VALUE);
+			}
 		} catch (Exception e) {
 			error = -1;
 			throw e;
@@ -115,10 +117,10 @@ public class TitanCassandraPeer {
 		}
 	}
 
-	private static void stats(final AtomicLong done, final AtomicLong nanos) {
+	private static void stats(final AtomicLong done, final long nanos) {
 		long soFar = done.get();
 		Log.info(String.format("%,d vertices at %,.0f / sec", soFar, soFar
-				/ (nanos.get() / 1000d / 1000 / 1000)));
+				/ (nanos / 1000d / 1000 / 1000)));
 	}
 
 }
