@@ -29,7 +29,6 @@ public class TitanCassandraPeer {
 				.toURL().toString());
 		storage.setProperty(GraphDatabaseConfiguration.STORAGE_BACKEND_KEY,
 				"embeddedcassandra");
-		storage.setProperty("batch-loading", "true");
 		conf.setProperty("ids.block-size", 1024 * 1024 * 10);
 		int error = 0;
 
@@ -38,6 +37,12 @@ public class TitanCassandraPeer {
 		final int instanceId = Integer.valueOf(args[3]);
 		final int threads = Integer.valueOf(args[4]);
 		final int commitSize = Integer.valueOf(args[5]);
+		String batch = "true";
+		if(args.length > 6) {
+			batch = args[6];
+		}
+		storage.setProperty("batch-loading", batch);
+		
 		final AtomicLong done = new AtomicLong();
 		try {
 			final Semaphore doneLock = new Semaphore(threads);
@@ -57,6 +62,7 @@ public class TitanCassandraPeer {
 					@Override
 					public void run() {
 						try {
+							LOG.info(String.format("Starting thread %s", threadId));
 							doneLock.acquire();
 							final long divisor = instanceCount * threads;
 							final long modulus = instanceId * threads + threadId;
@@ -76,8 +82,8 @@ public class TitanCassandraPeer {
 									changed++;
 									if (changed % commitSize == 0) {
 										tx.commit();
-										done.addAndGet(changed);
 										tx = graph.newTransaction();
+										done.addAndGet(changed);
 										changed = 0;
 										prev = null;
 									}
@@ -89,15 +95,17 @@ public class TitanCassandraPeer {
 							LOG.error(Thread.currentThread().getName(), e);
 						} finally {
 							doneLock.release();
+							LOG.info(String.format("Thread %s done", threadId));
 						}
 					}
 				});
 				workers[thread].start();
 			}
 			
-			while(!doneLock.tryAcquire(threads, 10, TimeUnit.SECONDS)) {
+			Thread.sleep(10000);
+			do {
 				stats(done, System.nanoTime() - start);
-			}
+			} while(!doneLock.tryAcquire(threads, 10, TimeUnit.SECONDS));
 
 			graph.shutdown();
 
