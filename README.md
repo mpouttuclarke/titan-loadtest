@@ -20,7 +20,7 @@ The parameters to the jar:
 4.  Node id (must be 0 to node count - 1)
 5.  Worker thread count
 6.  Commit size
-
+ 
 When run, the jar will test various read ratios and will report results for each ratio mix.  Currently, the following read / write mixes are supported:
 TL_RR_00  100% writes 
 TL_RR_10  90% writes, 10% reads
