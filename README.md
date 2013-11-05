@@ -49,4 +49,4 @@ The columns are tab delimited with the following data:
 6.  Read rate per second
 7.  Hit rate: number of reads returning data
 
-Please see the Wiki for addtional information and resources for running the load test on cluster deployments.
+Please see the Wiki for additional information and resources for running the load test on cluster deployments.
