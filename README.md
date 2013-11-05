@@ -1,17 +1,17 @@
 titan-loadtest
 ==============
 
-Distributed and peer-based load test for Titan.  Each node loads independently without seperate load test servers.
+Distributed and peer-based load test for [Titan](http://thinkaurelius.github.io/titan/ "Distributed Graph Database").  Each node loads independently without seperate load test servers.  Currently supporting embedded [Apache Cassandra](http://cassandra.apache.org/ "Peer-to-peer Shared Nothing Database"), and will most likely expand to include other persistency soon.
 
-Builds an executable jar using Maven Shade plugin.  Execute the following command to build the jar: `mvn package`
+This project builds an executable jar using [Maven Shade](http://maven.apache.org/plugins/maven-shade-plugin/shade-mojo.html) plugin.  Execute the following command to build the jar: `mvn package`
 
-If you want to run with different versions of Titan or Cassandra, just change the Maven pom.xml dependencies and the new versions will be packaged in a new jar.  This makes it easy to test multiple versions of Titan and Cassandra without risk of dependency collisions polluting the results.
+If you want to run with different versions of Titan or Cassandra, just change the Maven pom.xml dependencies and the new versions will be packaged in a new jar.  This makes it easy to test multiple versions of Titan and Cassandra on the same hardware without risk of dependency collisions polluting the results.
 
 To run the load test, execute with the `java -jar` command:
 
-	java -javaagent:loadtest-0.0.1-SNAPSHOT.jar -Xmx4g -Xms4g -jar loadtest-0.0.1-SNAPSHOT.jar cassandra-disk.yaml 1000000000 10 0 12 64
+	$ java -javaagent:loadtest-0.0.1-SNAPSHOT.jar -Xmx4g -Xms4g -jar loadtest-0.0.1-SNAPSHOT.jar cassandra-disk.yaml 1000000000 10 0 12 64
 
-**Please note:** using the `-javaagent` is mandatory, as Cassandra requires Jamm to montior heap usage while determining when to flush memtables.  Without Jamm, under heavy load Cassandra will likely cause the JVM to spiral into endless GC cycles.
+**Please note:** using the `-javaagent` is mandatory, as Cassandra requires [Jamm](https://github.com/jbellis/jamm "Java Agent for Memory Measurements") to montior heap usage while determining when to flush memtables.  Without Jamm, under heavy load Cassandra will likely cause the JVM to spiral into endless GC cycles.
 
 The parameters to the jar:
 
@@ -61,7 +61,8 @@ When run, the jar will test various read ratios and will report results for each
 
 For example, the results of the command on a single machine will look like:
 
-	$ java -javaagent:target/loadtest-0.0.1-SNAPSHOT.jar -Xmx2g -Xms2g -jar target/loadtest-0.0.1-SNAPSHOT.jar src/test/resources/cassandra-local.yaml 10000000 1 0 3 64 | grep TL_RR
+	$ java -javaagent:target/loadtest-0.0.1-SNAPSHOT.jar -Xmx2g -Xms2g -jar target/loadtest-0.0.1-SNAPSHOT.jar src/test/resources/cassandra-local.yaml 10000000 1 0 3 64 > results.out
+	cat results.out | grep TL_RR
 	TL_RR_00	170.648	5,000,000	29,300	0	0	0
 	TL_RR_10	196.941	2,500,000	12,694	273,435	1,388	273,435
 	TL_RR_25	362.605	1,250,000	3,447	312,498	862	312,498
