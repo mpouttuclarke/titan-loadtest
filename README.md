@@ -5,7 +5,7 @@ Distributed and peer-based load test for [Titan](http://thinkaurelius.github.io/
 
 This project builds an executable jar using [Maven Shade](http://maven.apache.org/plugins/maven-shade-plugin/shade-mojo.html) plugin.  Execute the following command to build the jar: `mvn package`
 
-If you want to run with different versions of Titan or Cassandra, just change the Maven pom.xml dependencies and the new versions will be packaged in a new jar.  This makes it easy to test multiple versions of Titan and Cassandra on the same hardware without risk of dependency collisions polluting the results.
+If you want to run with different versions of Titan or Cassandra, just change the [Maven pom.xml](http://maven.apache.org/guides/introduction/introduction-to-the-pom.html "Project Object Model") dependencies and the new versions will be packaged in a new jar.  This makes it easy to test multiple versions of Titan and Cassandra on the same hardware without risk of dependency collisions polluting the results.
 
 To run the load test, execute with the `java -jar` command:
 
@@ -16,9 +16,9 @@ To run the load test, execute with the `java -jar` command:
 The parameters to the jar:
 
 1. Location of the cassandra.yaml
-2. Vertex count to create across the entire cluster (currently creates the same number of edges)
+2. Vertex count to create across the entire cluster
 3. Node count (starting from 1)
-4. Node id (must be from 0 to node count - 1)
+4. Node id (must be between 0 and node count - 1)
 5. Worker thread count per node
 6. Commit size
  
