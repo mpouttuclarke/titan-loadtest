@@ -53,10 +53,6 @@ When run, the jar will test various read ratios and will report results for each
     <td>TL_RR_90</td>
     <td>10% writes, 90% reads</td>
 </tr>
-<tr>
-    <td>TL_RR_95</td>
-    <td>5% writes, 95% reads</td>
-</tr>
 </table>
 
 For example, the results of the command on a single machine will look like:
