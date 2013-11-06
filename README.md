@@ -65,7 +65,6 @@ For example, the results of the command on a single machine will look like:
 	TL_RR_50	199.218	625,000	3,137	625,000	3,137	625,000
 	TL_RR_75	198.198	312,500	1,577	937,500	4,730	937,500
 	TL_RR_90	260.970	156,250	599	1,406,250	5,389	1,406,250
-	TL_RR_95	531.199	156,250	294	2,968,750	5,589	2,968,750
 
 The columns are tab delimited with the following data:
 
