@@ -25,7 +25,7 @@ import com.thinkaurelius.titan.diskstorage.hazelcast.AbstractHazelcastStoreManag
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.tinkerpop.blueprints.Vertex;
 
-public class TitanFlashPeer {
+public class TitanHazelcastPeer {
 
 	static enum ReadRatio {
 		TL_RR_00(0, true), TL_RR_10(10, false), TL_RR_25(4, false), TL_RR_50(1,
@@ -40,12 +40,12 @@ public class TitanFlashPeer {
 		}
 	}
 
-	static final Logger LOG = Logger.getLogger(TitanFlashPeer.class);
+	static final Logger LOG = Logger.getLogger(TitanHazelcastPeer.class);
 
 	public static void main(String[] args) throws Exception {
 
 		MetricRegistry reg = new MetricRegistry();
-		String name = TitanFlashPeer.class.getSimpleName();
+		String name = TitanHazelcastPeer.class.getSimpleName();
 		reg.registerAll(new GarbageCollectorMetricSet());
 		reg.registerAll(new ThreadStatesGaugeSet());
 		reg.registerAll(new MemoryUsageGaugeSet());
