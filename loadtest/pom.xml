@@ -18,13 +18,8 @@
 		</dependency>
 		<dependency>
 			<groupId>com.thinkaurelius.titan</groupId>
-			<artifactId>titan-core</artifactId>
-			<version>0.3.2</version>
-		</dependency>
-		<dependency>
-			<groupId>com.thinkaurelius.titan</groupId>
 			<artifactId>titan-cassandra</artifactId>
-			<version>0.3.2</version>
+			<version>0.4.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.cassandra</groupId>
@@ -35,6 +30,36 @@
 			<groupId>net.java.dev.jna</groupId>
 			<artifactId>jna</artifactId>
 			<version>LATEST</version>
+		</dependency>
+		<dependency>
+			<groupId>com.codahale.metrics</groupId>
+			<artifactId>metrics-core</artifactId>
+			<version>LATEST</version>
+		</dependency>
+		<dependency>
+			<groupId>com.codahale.metrics</groupId>
+			<artifactId>metrics-jvm</artifactId>
+			<version>LATEST</version>
+		</dependency>
+		<dependency>
+			<groupId>com.codahale.metrics</groupId>
+			<artifactId>metrics-graphite</artifactId>
+			<version>LATEST</version>
+		</dependency>
+		<dependency>
+			<groupId>com.thinkaurelius.titan</groupId>
+			<artifactId>titan-core</artifactId>
+			<version>matt-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>com.thinkaurelius.titan</groupId>
+			<artifactId>titan-hazelcast</artifactId>
+			<version>matt-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>com.hazelcast</groupId>
+			<artifactId>hazelcast</artifactId>
+			<version>matt-SNAPSHOT</version>
 		</dependency>
 	</dependencies>
 	<build>
@@ -58,10 +83,15 @@
             </goals>
             <configuration>
               <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                <!--transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <manifestEntries>
                     <Main-Class>com.mpouttuclarke.titan.loadtest.TitanCassandraPeer</Main-Class>
                     <Premain-Class>org.github.jamm.MemoryMeter</Premain-Class>
+                  </manifestEntries>
+                </transformer-->
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <manifestEntries>
+                    <Main-Class>com.mpouttuclarke.titan.loadtest.TitanHazelcastPeer</Main-Class>
                   </manifestEntries>
                 </transformer>
               </transformers>

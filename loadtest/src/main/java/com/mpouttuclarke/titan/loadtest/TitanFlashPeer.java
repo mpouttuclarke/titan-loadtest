@@ -1,7 +1,7 @@
 package com.mpouttuclarke.titan.loadtest;
 
-import java.io.File;
-import java.util.concurrent.Semaphore;
+import java.net.Inet4Address;
+import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -9,16 +9,23 @@ import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.log4j.Logger;
 
-import com.esotericsoftware.minlog.Log;
+import com.codahale.metrics.MetricFilter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.graphite.Graphite;
+import com.codahale.metrics.graphite.GraphiteReporter;
+import com.codahale.metrics.jvm.FileDescriptorRatioGauge;
+import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
+import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
+import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 import com.thinkaurelius.titan.core.TitanFactory;
 import com.thinkaurelius.titan.core.TitanGraph;
 import com.thinkaurelius.titan.core.TitanTransaction;
 import com.thinkaurelius.titan.core.TypeMaker.UniquenessConsistency;
+import com.thinkaurelius.titan.diskstorage.hazelcast.AbstractHazelcastStoreManager;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
-import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Vertex;
 
-public class TitanCassandraPeer {
+public class TitanFlashPeer {
 
 	static enum ReadRatio {
 		TL_RR_00(0, true), TL_RR_10(10, false), TL_RR_25(4, false), TL_RR_50(1,
@@ -33,16 +40,40 @@ public class TitanCassandraPeer {
 		}
 	}
 
-	static final Logger LOG = Logger.getLogger(TitanCassandraPeer.class);
+	static final Logger LOG = Logger.getLogger(TitanFlashPeer.class);
 
 	public static void main(String[] args) throws Exception {
+
+		MetricRegistry reg = new MetricRegistry();
+		String name = TitanFlashPeer.class.getSimpleName();
+		reg.registerAll(new GarbageCollectorMetricSet());
+		reg.registerAll(new ThreadStatesGaugeSet());
+		reg.registerAll(new MemoryUsageGaugeSet());
+		reg.register(MetricRegistry.name(name, "fileDescriptors"),
+				new FileDescriptorRatioGauge());
+		GraphiteReporter reporter = GraphiteReporter
+				.forRegistry(reg)
+				.prefixedWith(
+						"servers." + Inet4Address.getLocalHost().getHostName()
+								+ "." + name)
+				.convertRatesTo(TimeUnit.SECONDS)
+				.convertDurationsTo(TimeUnit.MILLISECONDS)
+				.filter(MetricFilter.ALL)
+				.build(new Graphite(
+						new InetSocketAddress("10.16.178.201", 2003)));
+		reporter.start(10, TimeUnit.SECONDS);
+
 		BaseConfiguration conf = new BaseConfiguration();
 		Configuration storage = conf
 				.subset(GraphDatabaseConfiguration.STORAGE_NAMESPACE);
-		storage.setProperty("cassandra-config-dir", new File(args[0]).toURI()
-				.toURL().toString());
 		storage.setProperty(GraphDatabaseConfiguration.STORAGE_BACKEND_KEY,
-				"embeddedcassandra");
+				"hazelcast");
+		storage.setProperty(GraphDatabaseConfiguration.STORAGE_DIRECTORY_KEY,
+				"target/db");
+		storage.setProperty(
+				GraphDatabaseConfiguration.PARALLEL_BACKEND_OPS_KEY, "false");
+		storage.setProperty(AbstractHazelcastStoreManager.CONFIG_FILE_KEY,
+				args[0]);
 		conf.setProperty("ids.block-size", 1024 * 1024 * 10);
 		int error = 0;
 
@@ -56,37 +87,36 @@ public class TitanCassandraPeer {
 		try {
 			final TitanGraph graph = TitanFactory.open(conf);
 
-			if (instanceCount < 2 || instanceId == 0) {
-				graph.makeKey("vid").dataType(Long.class)
-						.indexed(Vertex.class).unique(UniquenessConsistency.NO_LOCK)
-						.make();
-				graph.makeLabel("linkTo").oneToOne().make();
-				graph.commit();
+			graph.makeKey("vid").dataType(Long.class).indexed(Vertex.class)
+					.unique(UniquenessConsistency.NO_LOCK).make();
+			graph.makeLabel("linkTo").oneToOne().make();
+
+			graph.commit();
+			if (instanceCount > 1) {
+				LOG.info("Waiting for cluster startup before generating load");
+				Thread.sleep(30000);
 			}
-			if (instanceId == 0 && instanceCount > 1) {
-				LOG.info("Seed waiting for cluster startup before generating load");
-				Thread.sleep(60000);
-			}
-			
+
 			long offset = 0L;
 			long count = vertexCount;
 			int length = ReadRatio.values().length;
 			for (int x = 0; x < length; x++) {
-				if(x < length - 1) {
+				if (x < length - 1) {
 					count /= 2;
 				} else {
 					count = vertexCount - offset;
 				}
-				runTest(ReadRatio.values()[x], offset, count, instanceCount, instanceId, threads,
-						commitSize, graph);
+				runTest(ReadRatio.values()[x], offset, count, instanceCount,
+						instanceId, threads, commitSize, graph);
 				offset = offset + count;
 			}
 
 			graph.shutdown();
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			error = -1;
-			e.printStackTrace();
+			e.printStackTrace(System.out);
 		} finally {
+			reporter.stop();
 			if (instanceCount > 1) {
 				System.out
 						.println("Waiting forever so other nodes don't fail, Ctrl-C to terminate");
@@ -119,7 +149,8 @@ public class TitanCassandraPeer {
 						Vertex prev = null;
 						int changed = 0;
 						TitanTransaction tx = graph.newTransaction();
-						for (long vertexId = vertexOffset; vertexId < vertexCount + vertexOffset; vertexId++) {
+						for (long vertexId = vertexOffset; vertexId < vertexCount
+								+ vertexOffset; vertexId++) {
 							if (vertexId % divisor == modulus) {
 								Vertex curr = tx.addVertex(null);
 								curr.setProperty("vid", vertexId);
@@ -160,7 +191,7 @@ public class TitanCassandraPeer {
 		for (Thread worker : workers) {
 			worker.join();
 		}
-		
+
 		stats(ratio, writes, reads, hits, System.nanoTime() - start);
 
 	}
